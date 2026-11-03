@@ -1,0 +1,154 @@
+import unittest
+
+from fastapi.testclient import TestClient
+
+from api import app
+from database import get_categories_from_db, get_questions_from_db
+
+client = TestClient(app)
+
+
+class TestQuizAPI(unittest.TestCase):
+    def create_session(self):
+        response = client.post("/quiz/session", json={})
+        self.assertEqual(response.status_code, 200)
+        return response.json()["session_id"]
+
+    def test_root(self):
+        response = client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"message": "Quiz API is running"})
+
+    def test_categories(self):
+        response = client.get("/categories")
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()["categories"]
+        self.assertIn("Prepositions of time", data)
+        self.assertIn("Prepositions of movement", data)
+
+    def test_questions_do_not_expose_correct_answer(self):
+        response = client.get("/questions")
+        self.assertEqual(response.status_code, 200)
+
+        for question in response.json()["questions"]:
+            self.assertNotIn("correct_answer", question)
+            self.assertNotIn("full_answer", question)
+            self.assertEqual(len(question["answers"]), 3)
+
+    def test_correct_answer(self):
+        session_id = self.create_session()
+
+        response = client.post(
+            "/quiz/answer",
+            json={"session_id": session_id, "question_id": 1, "answer": 1},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["correct"])
+
+    def test_wrong_answer(self):
+        session_id = self.create_session()
+        response = client.post(
+            "/quiz/answer",
+            json={"session_id": session_id, "question_id": 1, "answer": 2},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["correct"])
+
+    def test_unknown_category_returns_404(self):
+        response = client.get("/questions", params={"category": "Unknown category"})
+        self.assertEqual(response.status_code, 404)
+
+    def test_unknown_question_returns_404(self):
+        session_id = self.create_session()
+        response = client.post(
+            "/quiz/answer",
+            json={"session_id": session_id, "question_id": 9999, "answer": 1},
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_invalid_answer_returns_422(self):
+        session_id = self.create_session()
+        response = client.post(
+            "/quiz/answer",
+            json={"session_id": session_id, "question_id": 1, "answer": 4},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_duplicate_answer_returns_409(self):
+        session_id = self.create_session()
+        payload = {
+            "session_id": session_id,
+            "question_id": 1,
+            "answer": 1,
+        }
+        first_response = client.post("/quiz/answer", json=payload)
+        self.assertEqual(first_response.status_code, 200)
+        second_response = client.post("/quiz/answer", json=payload)
+        self.assertEqual(second_response.status_code, 409)
+
+    def test_answer_question_from_another_category(self):
+        categories = get_categories_from_db()
+        category_a = categories[0]
+        category_b = categories[1]
+
+        question_from_b = get_questions_from_db(category_b)[0]
+
+        session_response = client.post(
+            "/quiz/session",
+            json={"category": category_a},
+        )
+        session_id = session_response.json()["session_id"]
+
+        response = client.post(
+            "/quiz/answer",
+            json={
+                "session_id": session_id,
+                "question_id": question_from_b["id"],
+                "answer": 1,
+            },
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == (
+            "Question does not belong to this session's category"
+        )
+
+    def test_complete_quiz_session(self):
+        session_id = self.create_session()
+        questions = get_questions_from_db()
+        for question in questions:
+            response = client.post(
+                "/quiz/answer",
+                json={
+                    "session_id": session_id,
+                    "question_id": question["id"],
+                    "answer": question["correct_answer"],
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(response.json()["correct"])
+        response = client.get(f"/quiz/session/{session_id}/score")
+        self.assertEqual(response.status_code, 200)
+
+        score = response.json()
+        self.assertEqual(score["score"], len(questions))
+        self.assertEqual(score["status"], "completed")
+        response = client.post(
+            "/quiz/answer",
+            json={
+                "session_id": session_id,
+                "question_id": questions[0]["id"],
+                "answer": questions[0]["correct_answer"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json()["detail"],
+            "This quiz session is already completed",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

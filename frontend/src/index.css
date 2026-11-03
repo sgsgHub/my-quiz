@@ -1,0 +1,82 @@
+:root {
+   font-family: 'Nunito', 'Segoe UI', sans-serif;
+   color: #34324a;
+   background: #f8f7ff;
+   font-synthesis: none;
+   text-rendering: optimizeLegibility;
+   -webkit-font-smoothing: antialiased;
+   -moz-osx-font-smoothing: grayscale;
+
+   --color-primary: #9277e8;
+   --color-primary-light: #eee9ff;
+   --color-blue: #83b9ed;
+   --color-mint: #91d9bd;
+   --color-yellow: #ffda85;
+   --color-pink: #f4a9c8;
+
+   --color-text: #34324a;
+   --color-text-light: #89869e;
+   --color-background: #f8f7ff;
+   --color-white: #ffffff;
+   --color-border: #eeeaf7;
+
+   --radius-card: 24px;
+   --radius-button: 16px;
+
+   --shadow-card: 0 8px 30px rgba(90, 75, 140, 0.08);
+}
+
+* {
+   box-sizing: border-box;
+}
+
+body {
+   margin: 0;
+   min-width: 320px;
+   min-height: 100vh;
+   background: var(--color-background);
+}
+
+button,
+input {
+   font: inherit;
+}
+
+button {
+   cursor: pointer;
+}
+
+#root {
+   min-height: 100vh;
+   width: 100%;
+   margin: 0 auto;
+}
+
+h1,
+h2,
+h3,
+p {
+   margin: 0;
+}
+
+a {
+   color: inherit;
+   text-decoration: none;
+}
+
+::selection {
+   background: var(--color-primary-light);
+   color: var(--color-primary);
+}
+
+.answer-option.correct {
+   background-color: #91d9bd;
+   border-color: #35a879;
+   color: #174d38;
+}
+
+.answer-option.wrong {
+   background-color: #f4a9c8;
+   border-color: #d94b78;
+   color: #70223d;
+}

@@ -1,0 +1,261 @@
+.app {
+   min-height: 100vh;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   padding: 40px 24px;
+}
+
+.app-header {
+   width: 100%;
+   max-width: 1000px;
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   margin-bottom: 48px;
+}
+
+.logo {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   font-size: 24px;
+   font-weight: 800;
+   color: var(--color-primary);
+}
+
+.logo-icon {
+   width: 42px;
+   height: 42px;
+   display: grid;
+   place-items: center;
+   background: var(--color-primary-light);
+   border-radius: 14px;
+   font-size: 22px;
+}
+
+.header-label {
+   color: var(--color-text-light);
+   font-size: 14px;
+   font-weight: 700;
+}
+
+.quiz-container {
+   width: 100%;
+   max-width: 760px;
+}
+
+.welcome {
+   text-align: center;
+   margin-bottom: 36px;
+}
+
+.welcome h1 {
+   font-size: clamp(30px, 5vw, 42px);
+   font-weight: 800;
+   margin-bottom: 12px;
+}
+
+.welcome p {
+   color: var(--color-text-light);
+   font-size: 17px;
+}
+
+.quiz-card {
+   background: var(--color-white);
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-card);
+   padding: 36px;
+   box-shadow: var(--shadow-card);
+}
+
+.progress-section {
+   margin-bottom: 32px;
+}
+
+.progress-info {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   margin-bottom: 12px;
+   font-size: 14px;
+   font-weight: 700;
+}
+
+.progress-label {
+   color: var(--color-text-light);
+}
+
+.progress-track {
+   width: 100%;
+   height: 10px;
+   overflow: hidden;
+   background: #f0edf8;
+   border-radius: 20px;
+}
+
+.progress-fill {
+   height: 100%;
+   background: linear-gradient(90deg, #9277e8, #b6a4f5);
+   border-radius: 20px;
+   transition: width 0.4s ease;
+}
+
+.question-category {
+   display: inline-block;
+   padding: 8px 14px;
+   margin-bottom: 20px;
+   border-radius: 12px;
+   background: #eee9ff;
+   color: #8064d4;
+   font-size: 13px;
+   font-weight: 800;
+}
+
+.question-title {
+   font-size: 26px;
+   line-height: 1.4;
+   font-weight: 800;
+   margin-bottom: 28px;
+}
+
+.answers {
+   display: flex;
+   flex-direction: column;
+   gap: 14px;
+}
+
+.answer-option {
+   width: 100%;
+   min-height: 68px;
+   display: flex;
+   align-items: center;
+   gap: 16px;
+   padding: 14px 20px;
+   border: 2px solid var(--color-border);
+   border-radius: var(--radius-button);
+   background: var(--color-white);
+   color: var(--color-text);
+   text-align: left;
+   font-size: 16px;
+   font-weight: 700;
+   transition: all 0.2s ease;
+}
+
+.answer-option:hover:not(:disabled) {
+   border-color: var(--color-primary);
+   background: #faf8ff;
+   transform: translateY(-2px);
+}
+
+.answer-option:focus-visible {
+   outline: 3px solid var(--color-primary-light);
+   outline-offset: 3px;
+}
+
+.answer-letter {
+   width: 36px;
+   height: 36px;
+   flex-shrink: 0;
+   display: grid;
+   place-items: center;
+   border-radius: 11px;
+   background: #f2effb;
+   color: var(--color-primary);
+   font-weight: 800;
+}
+
+.answer-option.selected {
+   border-color: var(--color-primary);
+   background: #f7f4ff;
+}
+
+.answer-option.correct {
+   border-color: #70c9a4;
+   background: #effbf5;
+}
+
+.answer-option.incorrect {
+   border-color: #ef9caf;
+   background: #fff3f5;
+}
+
+.feedback {
+   margin-top: 24px;
+   padding: 18px;
+   border-radius: 16px;
+   font-weight: 700;
+   animation: fadeIn 0.3s ease;
+}
+
+.feedback.correct {
+   background: #effbf5;
+   color: #318c68;
+}
+
+.feedback.incorrect {
+   background: #fff3f5;
+   color: #c65e78;
+}
+
+.quiz-footer {
+   display: flex;
+   justify-content: flex-end;
+   margin-top: 28px;
+}
+
+.primary-button {
+   min-width: 150px;
+   padding: 15px 24px;
+   border: none;
+   border-radius: 15px;
+   background: var(--color-primary);
+   color: white;
+   font-size: 15px;
+   font-weight: 800;
+   transition: all 0.2s ease;
+}
+
+.primary-button:hover:not(:disabled) {
+   background: #8064d4;
+   transform: translateY(-2px);
+}
+
+.primary-button:disabled {
+   opacity: 0.45;
+   cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+   from {
+      opacity: 0;
+      transform: translateY(8px);
+   }
+   to {
+      opacity: 1;
+      transform: translateY(0);
+   }
+}
+
+@media (max-width: 600px) {
+   .app {
+      padding: 24px 16px;
+   }
+
+   .app-header {
+      margin-bottom: 36px;
+   }
+
+   .quiz-card {
+      padding: 24px 18px;
+   }
+
+   .question-title {
+      font-size: 22px;
+   }
+
+   .answer-option {
+      min-height: 60px;
+      padding: 12px;
+   }
+}
