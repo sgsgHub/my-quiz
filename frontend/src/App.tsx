@@ -175,7 +175,7 @@ function App() {
          </header>
 
          <section className="quiz-container">
-            {sessionId === null ? (
+            {showWelcome ? (
                <div className="welcome">
                   <h1>Welcome to Quiz Master!</h1>
                   <p>Choose a category and test your knowledge.</p>
