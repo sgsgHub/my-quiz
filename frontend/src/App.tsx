@@ -5,6 +5,7 @@ import {
    getQuestions,
    createQuizSession,
    getQuizScore,
+   submitQuizAnswer,
 } from './api';
 import type {
    Question,
@@ -120,23 +121,11 @@ function App() {
       setError('');
 
       try {
-         const response = await fetch('http://127.0.0.1:8000/quiz/answer', {
-            method: 'POST',
-            headers: {
-               'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-               session_id: sessionId,
-               question_id: questions[currentQuestionIndex].id,
-               answer,
-            }),
-         });
-
-         if (!response.ok) {
-            throw new Error('Failed to submit answer');
-         }
-
-         const result = await response.json();
+         const result = await submitQuizAnswer(
+            sessionId,
+            questions[currentQuestionIndex].id,
+            answer,
+         );
 
          setSelectedAnswer(answer);
          setAnswerResult(result);

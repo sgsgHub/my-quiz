@@ -1,4 +1,6 @@
-const API_URL = 'http://127.0.0.1:8000';
+// Set VITE_API_URL in Vercel to the deployed API origin, for example
+// https://your-api.example.com. The localhost default is for local development.
+const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
 
 export async function getCategories() {
    const response = await fetch(`${API_URL}/categories`);
@@ -35,6 +37,28 @@ export async function createQuizSession(category?: string) {
 
    if (!response.ok) {
       throw new Error('Failed to create quiz session');
+   }
+
+   return response.json();
+}
+
+export async function submitQuizAnswer(
+   sessionId: number,
+   questionId: number,
+   answer: number,
+) {
+   const response = await fetch(`${API_URL}/quiz/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+         session_id: sessionId,
+         question_id: questionId,
+         answer,
+      }),
+   });
+
+   if (!response.ok) {
+      throw new Error('Failed to submit answer');
    }
 
    return response.json();
