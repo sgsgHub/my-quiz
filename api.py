@@ -12,6 +12,7 @@ from database import (
     get_question_from_db,
     get_questions_from_db,
     get_quiz_score,
+    is_postgres,
     save_quiz_answer,
     seed_questions,
 )
@@ -19,8 +20,9 @@ from database import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_tables()
-    seed_questions()
+    if not is_postgres():
+        create_tables()
+        seed_questions()
     yield
 
 

@@ -103,11 +103,7 @@ function App() {
                ? shuffleAnswers(shuffledQuestions[0].answers)
                : [],
          );
-         setShuffledAnswers(
-            data.questions.length > 0
-               ? shuffleAnswers(data.questions[0].answers)
-               : [],
-         );
+
          setCurrentQuestionIndex(0);
          setAnswerResult(null);
          setSelectedAnswer(null);

@@ -97,4 +97,26 @@ questions = [
         "answers": ["Ogo", "Ugu", "Aga"],
         "correct_answer": 1,
     },
+    {
+        "category": "Prepositions of movement",
+        "question": "be forms",
+        "full_answer": "Am/are/is was/were been",
+        "answers": [
+            "Am/are/is was/were been",
+            "Im/ure/is wos/were bean",
+            "Am/are/is vas/vere been",
+        ],
+        "correct_answer": 1,
+    },
+    {
+        "category": "Prepositions of movement",
+        "question": "tell forms",
+        "full_answer": "Am/are/is was/were been",
+        "answers": [
+            "Tell Told Told",
+            "Tell Told Tollen",
+            "Tell Told Tallen",
+        ],
+        "correct_answer": 1,
+    },
 ]

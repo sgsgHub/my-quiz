@@ -1,4 +1,6 @@
+import os
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 from questions import questions
@@ -11,13 +13,48 @@ class QuestionAlreadyAnsweredError(Exception):
 DATABASE_PATH = Path(__file__).parent / "quiz.db"
 
 
+def is_postgres():
+    return bool(os.getenv("DATABASE_URL"))
+
+
 def get_connection():
+    if is_postgres():
+        import psycopg
+        from psycopg.rows import dict_row
+
+        return psycopg.connect(
+            os.environ["DATABASE_URL"],
+            sslmode="require",
+            prepare_threshold=None,
+            row_factory=dict_row,
+        )
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
     return connection
 
 
+@contextmanager
+def database_connection():
+    connection = get_connection()
+
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
+
+
+def placeholder():
+    return "%s" if is_postgres() else "?"
+
+
 def create_tables():
+
+    if is_postgres():
+        raise RuntimeError(
+            "create_tables() is for local SQLite only. Supabase tables allready exist"
+        )
+
     connection = get_connection()
 
     try:
@@ -36,7 +73,7 @@ def create_tables():
             CREATE TABLE IF NOT EXISTS answer_options (
             question_id INTEGER NOT NULL, option_number INTEGER NOT NULL CHECK (option_number BETWEEN 1 AND 3), answer_text TEXT NOT NULL, PRIMARY KEY (question_id, option_number), FOREIGN KEY (question_id) REFERENCES questions(id))        
 
-""")
+                            """)
         connection.execute("""
                 CREATE TABLE IF NOT EXISTS quiz_sessions (
                     id INTEGER PRIMARY KEY,
@@ -80,6 +117,13 @@ def create_tables():
 
 
 def seed_questions():
+
+    if is_postgres():
+        raise RuntimeError(
+            "seed_questions() is for local SQLite only. "
+            "Supabase already contains the quiz questions."
+        )
+
     connection = get_connection()
 
     try:
@@ -134,24 +178,18 @@ def seed_questions():
 
 
 def get_categories_from_db():
-    connection = get_connection()
-
-    try:
+    with database_connection() as connection:
         rows = connection.execute(
             "SELECT name FROM categories ORDER BY name"
         ).fetchall()
 
         return [row["name"] for row in rows]
 
-    finally:
-        connection.close()
-
 
 def get_questions_from_db(category=None):
-    connection = get_connection()
+    placeholder_value = placeholder()
 
-    try:
-        query = """
+    query = """
             SELECT
                 questions.id,
                 categories.name AS category,
@@ -162,23 +200,24 @@ def get_questions_from_db(category=None):
             JOIN categories
                 ON questions.category_id = categories.id
         """
-        parameters = ()
+    parameters = ()
 
-        if category is not None:
-            query += " WHERE categories.name = ?"
-            parameters = (category,)
+    if category is not None:
+        query += f" WHERE categories.name = {placeholder_value}"
+        parameters = (category,)
 
-        query += " ORDER BY questions.id"
+    query += " ORDER BY questions.id"
 
+    with database_connection() as connection:
         rows = connection.execute(query, parameters).fetchall()
         result = []
 
         for row in rows:
             options = connection.execute(
-                """
+                f"""
                 SELECT option_number, answer_text
                 FROM answer_options
-                WHERE question_id = ?
+                WHERE question_id = {placeholder_value}
                 ORDER BY option_number
                 """,
                 (row["id"],),
@@ -196,16 +235,14 @@ def get_questions_from_db(category=None):
             )
 
         return result
-    finally:
-        connection.close()
 
 
 def get_question_from_db(question_id):
-    connection = get_connection()
+    placeholder_value = placeholder()
 
-    try:
+    with database_connection() as connection:
         row = connection.execute(
-            """
+            f"""
             SELECT
                 questions.id,
                 categories.name AS category,
@@ -215,7 +252,7 @@ def get_question_from_db(question_id):
             FROM questions
             JOIN categories
                 ON questions.category_id = categories.id
-            WHERE questions.id = ?
+            WHERE questions.id = {placeholder_value}
             """,
             (question_id,),
         ).fetchone()
@@ -224,10 +261,10 @@ def get_question_from_db(question_id):
             return None
 
         options = connection.execute(
-            """
+            f"""
             SELECT answer_text
             FROM answer_options
-            WHERE question_id = ?
+            WHERE question_id = {placeholder_value}
             ORDER BY option_number
             """,
             (question_id,),
@@ -241,148 +278,157 @@ def get_question_from_db(question_id):
             "correct_answer": row["correct_answer"],
             "answers": [option["answer_text"] for option in options],
         }
-    finally:
-        connection.close()
 
 
 def create_quiz_session(category=None):
-    connection = get_connection()
+    placeholder_value = placeholder()
 
-    try:
-        with connection:
-            category_id = None
+    with database_connection() as connection:
+        category_id = None
 
-            if category is not None:
-                row = connection.execute(
-                    "SELECT id FROM categories WHERE name = ?",
-                    (category,),
-                ).fetchone()
+        if category is not None:
+            row = connection.execute(
+                f"SELECT id FROM categories WHERE name = {placeholder_value}",
+                (category,),
+            ).fetchone()
 
-                if row is None:
-                    raise ValueError(f"Unknown category: {category}")
+            if row is None:
+                raise ValueError(f"Unknown category: {category}")
 
-                category_id = row["id"]
+            category_id = row["id"]
 
+        if is_postgres():
             cursor = connection.execute(
                 """
                 INSERT INTO quiz_sessions (category_id)
-                VALUES (?)
+                VALUES (%s)
+                RETURNING id
                 """,
                 (category_id,),
             )
+            return cursor.fetchone()["id"]
 
-            return cursor.lastrowid
-
-    finally:
-        connection.close()
+        cursor = connection.execute(
+            """
+            INSERT INTO quiz_sessions (category_id)
+            VALUES (?)
+            """,
+            (category_id,),
+        )
+        return cursor.lastrowid
 
 
 def save_quiz_answer(session_id, question_id, selected_answer):
     if selected_answer not in (1, 2, 3):
         raise ValueError("Answer must be between 1 and 3")
 
-    connection = get_connection()
+    placeholder_value = placeholder()
 
-    try:
-        with connection:
-            session = connection.execute(
-                "SELECT id, category_id, status FROM quiz_sessions WHERE id = ?",
-                (session_id,),
-            ).fetchone()
+    with database_connection() as connection:
+        session = connection.execute(
+            f"SELECT id, category_id, status FROM quiz_sessions WHERE id = {placeholder_value}",
+            (session_id,),
+        ).fetchone()
 
-            if session is None:
-                raise ValueError(f"Unknown session ID: {session_id}")
-            if session["status"] == "completed":
-                raise ValueError("This quiz session is already completed")
-            existing_result = connection.execute(
-                """
+        if session is None:
+            raise ValueError(f"Unknown session ID: {session_id}")
+        if session["status"] == "completed":
+            raise ValueError("This quiz session is already completed")
+        existing_result = connection.execute(
+            f"""
                 SELECT id
                 FROM quiz_results
-                WHERE session_id = ? AND question_id = ?
+                WHERE session_id = {placeholder_value} AND question_id = {placeholder_value}
                 """,
-                (session_id, question_id),
-            ).fetchone()
-            if existing_result is not None:
-                raise QuestionAlreadyAnsweredError(
-                    "This question has already been answered in this session"
-                )
-            question = connection.execute(
-                """
+            (session_id, question_id),
+        ).fetchone()
+        if existing_result is not None:
+            raise QuestionAlreadyAnsweredError(
+                "This question has already been answered in this session"
+            )
+        question = connection.execute(
+            f"""
                 SELECT category_id, correct_answer
                 FROM questions
-                WHERE id = ?
+                WHERE id = {placeholder_value}
                 """,
-                (question_id,),
-            ).fetchone()
+            (question_id,),
+        ).fetchone()
 
-            if question is None:
-                raise ValueError(f"Unknown question ID: {question_id}")
-            if (
-                session["category_id"] is not None
-                and session["category_id"] != question["category_id"]
-            ):
-                raise ValueError("Question does not belong to this session's category")
-            is_correct = selected_answer == question["correct_answer"]
+        if question is None:
+            raise ValueError(f"Unknown question ID: {question_id}")
+        if (
+            session["category_id"] is not None
+            and session["category_id"] != question["category_id"]
+        ):
+            raise ValueError("Question does not belong to this session's category")
+        is_correct = selected_answer == question["correct_answer"]
 
-            connection.execute(
-                """
+        connection.execute(
+            f"""
                 INSERT INTO quiz_results (
                     session_id,
                     question_id,
                     selected_answer,
                     is_correct
                 )
-                VALUES (?, ?, ?, ?)
+                VALUES ({placeholder_value}, {placeholder_value}, {placeholder_value}, {placeholder_value})
                 """,
-                (
-                    session_id,
-                    question_id,
-                    selected_answer,
-                    int(is_correct),
-                ),
-            )
-            total_questions = connection.execute(
-                """
-                SELECT COUNT(*)
+            (
+                session_id,
+                question_id,
+                selected_answer,
+                is_correct,
+            ),
+        )
+        if session["category_id"] is None:
+            total_row = connection.execute(
+                "SELECT COUNT(*) AS total FROM questions"
+            ).fetchone()
+        else:
+            total_row = connection.execute(
+                f"""
+                SELECT COUNT(*) AS total
                 FROM questions
-                WHERE (? IS NULL OR category_id = ?)
+                WHERE category_id = {placeholder_value}
                 """,
-                (session["category_id"], session["category_id"]),
-            ).fetchone()[0]
+                (session["category_id"],),
+            ).fetchone()
 
-            answered_questions = connection.execute(
-                """
-                SELECT COUNT(*)
-                FROM quiz_results
-                WHERE session_id = ?
+        answered_row = connection.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM quiz_results
+            WHERE session_id = {placeholder_value}
+            """,
+            (session_id,),
+        ).fetchone()
+
+        total_questions = total_row["total"]
+        answered_questions = answered_row["total"]
+
+        if answered_questions == total_questions:
+            connection.execute(
+                f"""
+                UPDATE quiz_sessions
+                SET status = 'completed'
+                WHERE id = {placeholder_value}
                 """,
                 (session_id,),
-            ).fetchone()[0]
+            )
 
-            if answered_questions == total_questions:
-                connection.execute(
-                    """
-                    UPDATE quiz_sessions
-                    SET status = 'completed'
-                    WHERE id = ?
-                    """,
-                    (session_id,),
-                )
-            return {
-                "session_id": session_id,
-                "question_id": question_id,
-                "correct": is_correct,
-            }
-    finally:
-        connection.close()
+        return {
+            "session_id": session_id,
+            "question_id": question_id,
+            "correct": is_correct,
+        }
 
 
 def get_quiz_score(session_id):
-    connection = get_connection()
-
-    try:
+    placeholder_value = placeholder()
+    with database_connection() as connection:
         session = connection.execute(
-            "SELECT id, status FROM quiz_sessions WHERE id = ?",
+            f"SELECT id, status FROM quiz_sessions WHERE id = {placeholder_value}",
             (session_id,),
         ).fetchone()
 
@@ -390,12 +436,15 @@ def get_quiz_score(session_id):
             raise ValueError(f"Unknown session ID: {session_id}")
 
         result = connection.execute(
-            """
+            f"""
             SELECT
                 COUNT(*) AS answered,
-                COALESCE(SUM(is_correct), 0) AS score
+                COALESCE(
+                SUM(CASE WHEN is_correct THEN 1 ELSE 0 END),
+                0
+                ) AS score
             FROM quiz_results
-            WHERE session_id = ?
+            WHERE session_id = {placeholder_value}
             """,
             (session_id,),
         ).fetchone()
@@ -411,5 +460,3 @@ def get_quiz_score(session_id):
             "score": score,
             "percentage": percentage,
         }
-    finally:
-        connection.close()

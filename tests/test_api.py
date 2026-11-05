@@ -41,7 +41,7 @@ class TestQuizAPI(unittest.TestCase):
 
         response = client.post(
             "/quiz/answer",
-            json={"session_id": session_id, "question_id": 1, "answer": 1},
+            json={"session_id": session_id, "question_id": 1, "answer": 2},
         )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["correct"])
@@ -50,7 +50,7 @@ class TestQuizAPI(unittest.TestCase):
         session_id = self.create_session()
         response = client.post(
             "/quiz/answer",
-            json={"session_id": session_id, "question_id": 1, "answer": 2},
+            json={"session_id": session_id, "question_id": 1, "answer": 1},
         )
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.json()["correct"])
