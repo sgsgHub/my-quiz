@@ -1,0 +1,80 @@
+.admin-panel {
+   max-width: 800px;
+   margin: 30px auto;
+   padding: 24px;
+}
+
+.admin-panel form {
+   display: flex;
+   flex-direction: column;
+   gap: 12px;
+   max-width: 350px;
+}
+
+.admin-panel input {
+   padding: 10px;
+}
+
+.admin-panel button {
+   padding: 10px 16px;
+   cursor: pointer;
+}
+
+.admin-header {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+}
+
+.admin-question {
+   margin: 20px 0;
+   padding: 16px;
+   border: 1px solid #ccc;
+   border-radius: 8px;
+}
+
+.correct-answer {
+   color: green;
+   font-weight: bold;
+}
+
+.admin-error {
+   color: red;
+}
+
+.admin-question-form {
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   max-width: 500px;
+}
+
+.admin-question-form input,
+.admin-question-form select {
+   padding: 10px;
+}
+
+.admin-actions {
+   display: flex;
+   gap: 10px;
+}
+
+.admin-success {
+   color: green;
+}
+
+.admin-error {
+   color: red;
+}
+
+.admin-category-form {
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   max-width: 350px;
+   margin-bottom: 20px;
+}
+
+.admin-category-form input {
+   padding: 10px;
+}

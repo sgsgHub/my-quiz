@@ -460,3 +460,244 @@ def get_quiz_score(session_id):
             "score": score,
             "percentage": percentage,
         }
+
+
+def create_question_in_db(
+    category,
+    question,
+    full_answer,
+    correct_answer,
+    answers,
+):
+    placeholder_value = placeholder()
+
+    with database_connection() as connection:
+        category_row = connection.execute(
+            f"""
+            SELECT id
+            FROM categories
+            WHERE name = {placeholder_value}
+            """,
+            (category,),
+        ).fetchone()
+
+        if category_row is None:
+            raise ValueError(f"Unknown category: {category}")
+
+        if is_postgres():
+            cursor = connection.execute(
+                """
+                INSERT INTO questions (
+                    category_id,
+                    question_text,
+                    full_answer,
+                    correct_answer
+                )
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    category_row["id"],
+                    question,
+                    full_answer,
+                    correct_answer,
+                ),
+            )
+            question_id = cursor.fetchone()["id"]
+
+        else:
+            cursor = connection.execute(
+                """
+                INSERT INTO questions (
+                    category_id,
+                    question_text,
+                    full_answer,
+                    correct_answer
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    category_row["id"],
+                    question,
+                    full_answer,
+                    correct_answer,
+                ),
+            )
+            question_id = cursor.lastrowid
+
+        for number, answer in enumerate(answers, start=1):
+            connection.execute(
+                f"""
+                INSERT INTO answer_options (
+                    question_id,
+                    option_number,
+                    answer_text
+                )
+                VALUES (
+                    {placeholder_value},
+                    {placeholder_value},
+                    {placeholder_value}
+                )
+                """,
+                (question_id, number, answer),
+            )
+
+    return question_id
+
+
+def update_question_in_db(
+    question_id,
+    category,
+    question,
+    full_answer,
+    correct_answer,
+    answers,
+):
+    placeholder_value = placeholder()
+
+    with database_connection() as connection:
+        existing_question = connection.execute(
+            f"""
+            SELECT id
+            FROM questions
+            WHERE id = {placeholder_value}
+            """,
+            (question_id,),
+        ).fetchone()
+
+        if existing_question is None:
+            raise ValueError(f"Question not found: {question_id}")
+
+        category_row = connection.execute(
+            f"""
+            SELECT id
+            FROM categories
+            WHERE name = {placeholder_value}
+            """,
+            (category,),
+        ).fetchone()
+
+        if category_row is None:
+            raise ValueError(f"Unknown category: {category}")
+
+        connection.execute(
+            f"""
+            UPDATE questions
+            SET
+                category_id = {placeholder_value},
+                question_text = {placeholder_value},
+                full_answer = {placeholder_value},
+                correct_answer = {placeholder_value}
+            WHERE id = {placeholder_value}
+            """,
+            (
+                category_row["id"],
+                question,
+                full_answer,
+                correct_answer,
+                question_id,
+            ),
+        )
+
+        connection.execute(
+            f"""
+            DELETE FROM answer_options
+            WHERE question_id = {placeholder_value}
+            """,
+            (question_id,),
+        )
+
+        for number, answer in enumerate(answers, start=1):
+            connection.execute(
+                f"""
+                INSERT INTO answer_options (
+                    question_id,
+                    option_number,
+                    answer_text
+                )
+                VALUES (
+                    {placeholder_value},
+                    {placeholder_value},
+                    {placeholder_value}
+                )
+                """,
+                (question_id, number, answer),
+            )
+
+    return question_id
+
+
+def delete_question_from_db(question_id):
+    placeholder_value = placeholder()
+
+    with database_connection() as connection:
+        existing_question = connection.execute(
+            f"""
+            SELECT id
+            FROM questions
+            WHERE id = {placeholder_value}
+            """,
+            (question_id,),
+        ).fetchone()
+
+        if existing_question is None:
+            raise ValueError(f"Question not found: {question_id}")
+
+        existing_results = connection.execute(
+            f"""
+            SELECT id
+            FROM quiz_results
+            WHERE question_id = {placeholder_value}
+            LIMIT 1
+            """,
+            (question_id,),
+        ).fetchone()
+
+        if existing_results is not None:
+            raise ValueError("Cannot delete this question because it has quiz results")
+
+        connection.execute(
+            f"""
+            DELETE FROM answer_options
+            WHERE question_id = {placeholder_value}
+            """,
+            (question_id,),
+        )
+
+        connection.execute(
+            f"""
+            DELETE FROM questions
+            WHERE id = {placeholder_value}
+            """,
+            (question_id,),
+        )
+
+    return question_id
+
+
+def create_category_in_db(name):
+    placeholder_value = placeholder()
+
+    with database_connection() as connection:
+        connection.execute(
+            f"""
+            INSERT INTO categories (name)
+            VALUES ({placeholder_value})
+            ON CONFLICT(name) DO NOTHING
+            """,
+            (name,),
+        )
+
+        category = connection.execute(
+            f"""
+            SELECT id, name
+            FROM categories
+            WHERE name = {placeholder_value}
+            """,
+            (name,),
+        ).fetchone()
+
+    return {
+        "id": category["id"],
+        "name": category["name"],
+    }

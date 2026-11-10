@@ -1,32 +1,104 @@
-// Set VITE_API_URL in Vercel to the deployed API origin, for example
-// https://your-api.example.com. The localhost default is for local development.
-const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+import type { QuizScore } from './types';
 
-export async function getCategories() {
-   const response = await fetch(`${API_URL}/categories`);
+const API_URL = (
+   import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+).replace(/\/$/, '');
 
+export type AdminQuestion = {
+   id: number;
+   category: string;
+   question: string;
+   full_answer: string;
+   correct_answer: number;
+   answers: string[];
+};
+
+export type AdminQuestionInput = {
+   category: string;
+   question: string;
+   full_answer: string;
+   correct_answer: number;
+   answers: string[];
+};
+
+function getAdminHeaders(username: string, password: string) {
+   const credentials = btoa(
+      Array.from(new TextEncoder().encode(`${username}:${password}`), (byte) =>
+         String.fromCharCode(byte),
+      ).join(''),
+   );
+
+   return {
+      Authorization: `Basic ${credentials}`,
+   };
+}
+
+export type CategoriesResponse = {
+   categories: string[];
+};
+
+export type QuestionsResponse = {
+   questions: {
+      id: number;
+      category: string;
+      question: string;
+      answers: string[];
+   }[];
+};
+
+export type SessionResponse = {
+   session_id: number;
+};
+
+export type AnswerResult = {
+   correct: boolean;
+   message: string;
+   full_answer: string | null;
+};
+
+async function handleResponse<T>(
+   response: Response,
+   fallbackMessage: string,
+): Promise<T> {
    if (!response.ok) {
-      throw new Error('Failed to load categories');
+      let message = fallbackMessage;
+
+      try {
+         const data = await response.json();
+         message = data.detail || fallbackMessage;
+      } catch {
+         // Keep the fallback message.
+      }
+
+      throw new Error(message);
    }
 
    return response.json();
 }
 
-export async function getQuestions(category?: string) {
+// Existing quiz API functions
+
+export async function getCategories(): Promise<CategoriesResponse> {
+   const response = await fetch(`${API_URL}/categories`);
+
+   return handleResponse(response, 'Failed to load categories');
+}
+
+export async function getQuestions(
+   category?: string,
+): Promise<QuestionsResponse> {
    const url = category
       ? `${API_URL}/questions?category=${encodeURIComponent(category)}`
       : `${API_URL}/questions`;
 
    const response = await fetch(url);
 
-   if (!response.ok) {
-      throw new Error('Failed to load questions');
-   }
-
-   return response.json();
+   return handleResponse(response, 'Failed to load questions');
 }
 
-export async function createQuizSession(category?: string) {
+export async function createQuizSession(
+   category?: string,
+): Promise<SessionResponse> {
    const response = await fetch(`${API_URL}/quiz/session/`, {
       method: 'POST',
       headers: {
@@ -35,18 +107,14 @@ export async function createQuizSession(category?: string) {
       body: JSON.stringify({ category: category ?? null }),
    });
 
-   if (!response.ok) {
-      throw new Error('Failed to create quiz session');
-   }
-
-   return response.json();
+   return handleResponse(response, 'Failed to create quiz session');
 }
 
 export async function submitQuizAnswer(
    sessionId: number,
    questionId: number,
    answer: number,
-) {
+): Promise<AnswerResult> {
    const response = await fetch(`${API_URL}/quiz/answer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -57,19 +125,90 @@ export async function submitQuizAnswer(
       }),
    });
 
-   if (!response.ok) {
-      throw new Error('Failed to submit answer');
-   }
-
-   return response.json();
+   return handleResponse(response, 'Failed to submit answer');
 }
 
-export async function getQuizScore(sessionId: number) {
+export async function getQuizScore(sessionId: number): Promise<QuizScore> {
    const response = await fetch(`${API_URL}/quiz/session/${sessionId}/score`);
 
-   if (!response.ok) {
-      throw new Error('Failed to load quiz score');
-   }
+   return handleResponse(response, 'Failed to load quiz score');
+}
 
-   return response.json();
+// Admin API functions
+
+export async function getAdminQuestions(
+   username: string,
+   password: string,
+): Promise<{ questions: AdminQuestion[] }> {
+   const response = await fetch(`${API_URL}/admin/questions`, {
+      headers: getAdminHeaders(username, password),
+      cache: 'no-store',
+   });
+
+   return handleResponse(response, 'Failed to load admin questions');
+}
+
+export async function createAdminQuestion(
+   username: string,
+   password: string,
+   question: AdminQuestionInput,
+) {
+   const response = await fetch(`${API_URL}/admin/questions`, {
+      method: 'POST',
+      headers: {
+         ...getAdminHeaders(username, password),
+         'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(question),
+   });
+
+   return handleResponse(response, 'Failed to create question');
+}
+
+export async function updateAdminQuestion(
+   username: string,
+   password: string,
+   questionId: number,
+   question: AdminQuestionInput,
+) {
+   const response = await fetch(`${API_URL}/admin/questions/${questionId}`, {
+      method: 'PUT',
+      headers: {
+         ...getAdminHeaders(username, password),
+         'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(question),
+   });
+
+   return handleResponse(response, 'Failed to update question');
+}
+
+export async function deleteAdminQuestion(
+   username: string,
+   password: string,
+   questionId: number,
+) {
+   const response = await fetch(`${API_URL}/admin/questions/${questionId}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders(username, password),
+   });
+
+   return handleResponse(response, 'Failed to delete question');
+}
+
+export async function createAdminCategory(
+   username: string,
+   password: string,
+   name: string,
+) {
+   const response = await fetch(`${API_URL}/admin/categories`, {
+      method: 'POST',
+      headers: {
+         ...getAdminHeaders(username, password),
+         'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name }),
+   });
+
+   return handleResponse(response, 'Failed to create category');
 }

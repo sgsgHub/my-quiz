@@ -1,14 +1,19 @@
 import os
+import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 
 from database import (
     QuestionAlreadyAnsweredError,
+    create_category_in_db,
+    create_question_in_db,
     create_quiz_session,
     create_tables,
+    delete_question_from_db,
     get_categories_from_db,
     get_question_from_db,
     get_questions_from_db,
@@ -16,6 +21,7 @@ from database import (
     is_postgres,
     save_quiz_answer,
     seed_questions,
+    update_question_in_db,
 )
 
 
@@ -44,6 +50,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+security = HTTPBasic()
+
+
+def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    admin_username = os.getenv("ADMIN_USERNAME")
+    admin_password = os.getenv("ADMIN_PASSWORD")
+
+    if not admin_username or not admin_password:
+        raise HTTPException(
+            status_code=503, detail="Admin authentication is not configured"
+        )
+    username_is_correct = secrets.compare_digest(
+        credentials.username.encode("utf-8"),
+        admin_username.encode("utf-8"),
+    )
+
+    password_is_correct = secrets.compare_digest(
+        credentials.password.encode("utf-8"), admin_password.encode("utf-8")
+    )
+
+    if not (username_is_correct and password_is_correct):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid admin credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
 
 class AnswerRequest(BaseModel):
     session_id: int = Field(gt=0)
@@ -53,6 +87,18 @@ class AnswerRequest(BaseModel):
 
 class SessionRequest(BaseModel):
     category: str | None = None
+
+
+class AdminQuestionRequest(BaseModel):
+    category: str = Field(min_length=1)
+    question: str = Field(min_length=1)
+    full_answer: str = Field(min_length=1)
+    correct_answer: int = Field(ge=1, le=3)
+    answers: list[str] = Field(min_length=3, max_length=3)
+
+
+class AdminCategoryRequest(BaseModel):
+    name: str = Field(min_length=1)
 
 
 @app.post("/quiz/answer")
@@ -95,6 +141,7 @@ def read_categories():
 
 @app.get("/questions")
 def read_questions(category: str | None = None):
+
     if category is not None:
         categories = get_categories_from_db()
 
@@ -112,6 +159,121 @@ def read_questions(category: str | None = None):
             }
             for item in selected_questions
         ]
+    }
+
+
+@app.get("/admin/questions")
+def admin_read_questions(
+    admin: str = Depends(verify_admin),
+):
+    return {"questions": get_questions_from_db()}
+
+
+@app.put("/admin/questions/{question_id}")
+def admin_update_question(
+    question_id: int,
+    request: AdminQuestionRequest,
+    admin: str = Depends(verify_admin),
+):
+    if question_id <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid question ID",
+        )
+
+    try:
+        update_question_in_db(
+            question_id=question_id,
+            category=request.category,
+            question=request.question,
+            full_answer=request.full_answer,
+            correct_answer=request.correct_answer,
+            answers=request.answers,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+
+    return {
+        "message": "Question updated successfully",
+        "question_id": question_id,
+    }
+
+
+@app.delete("/admin/questions/{question_id}")
+def admin_delete_question(
+    question_id: int,
+    admin: str = Depends(verify_admin),
+):
+    if question_id <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid question ID",
+        )
+
+    try:
+        delete_question_from_db(question_id)
+    except ValueError as error:
+        message = str(error)
+
+        status_code = 409 if "quiz results" in message else 404
+
+        raise HTTPException(
+            status_code=status_code,
+            detail=message,
+        ) from error
+
+    return {
+        "message": "Question deleted successfully",
+        "question_id": question_id,
+    }
+
+
+@app.post("/admin/questions", status_code=201)
+def admin_create_question(
+    request: AdminQuestionRequest,
+    admin: str = Depends(verify_admin),
+):
+    try:
+        question_id = create_question_in_db(
+            category=request.category,
+            question=request.question,
+            full_answer=request.full_answer,
+            correct_answer=request.correct_answer,
+            answers=request.answers,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+
+    return {
+        "message": "Question created successfully",
+        "question_id": question_id,
+    }
+
+
+@app.post("/admin/categories", status_code=201)
+def admin_create_category(
+    request: AdminCategoryRequest,
+    admin: str = Depends(verify_admin),
+):
+    name = request.name.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=422,
+            detail="Category name cannot be empty",
+        )
+
+    category = create_category_in_db(name)
+
+    return {
+        "message": "Category created successfully",
+        "category": category,
     }
 
 

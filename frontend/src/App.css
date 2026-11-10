@@ -258,4 +258,7 @@
       min-height: 60px;
       padding: 12px;
    }
+   .answer-option:focus:not(:focus-visible) {
+      outline: none;
+   }
 }

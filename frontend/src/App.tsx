@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './App.css';
+import AdminPanel from './AdminPanel';
 import {
    getCategories,
    getQuestions,
@@ -15,6 +16,7 @@ import type {
    QuizScore,
 } from './types';
 function App() {
+   const [showAdmin, setShowAdmin] = useState(false);
    const [showWelcome, setShowWelcome] = useState(true);
    const [categories, setCategories] = useState<string[]>([]);
    const [shuffledAnswers, setShuffledAnswers] = useState<
@@ -155,131 +157,142 @@ function App() {
    }
    return (
       <main className="app">
+         <div className="app-navigation">
+            <button onClick={() => setShowAdmin(false)}>Quiz</button>
+
+            <button onClick={() => setShowAdmin(true)}>Admin Panel</button>
+         </div>
          <header className="app-header">
             <div className="logo">Quiz Master</div>
          </header>
+         {showAdmin ? (
+            <AdminPanel />
+         ) : (
+            <section className="quiz-container">
+               {showWelcome ? (
+                  <div className="welcome">
+                     <h1>Welcome to Quiz Master!</h1>
+                     <p>Choose a category and test your knowledge.</p>
 
-         <section className="quiz-container">
-            {showWelcome ? (
-               <div className="welcome">
-                  <h1>Welcome to Quiz Master!</h1>
-                  <p>Choose a category and test your knowledge.</p>
+                     <select
+                        value={selectedCategory}
+                        onChange={(event) =>
+                           setSelectedCategory(event.target.value)
+                        }
+                     >
+                        <option value="">All categories</option>
 
-                  <select
-                     value={selectedCategory}
-                     onChange={(event) =>
-                        setSelectedCategory(event.target.value)
-                     }
-                  >
-                     <option value="">All categories</option>
+                        {categories.map((category) => (
+                           <option key={category} value={category}>
+                              {category}
+                           </option>
+                        ))}
+                     </select>
 
-                     {categories.map((category) => (
-                        <option key={category} value={category}>
-                           {category}
-                        </option>
-                     ))}
-                  </select>
+                     <button
+                        className="primary-button"
+                        onClick={startQuiz}
+                        disabled={loading}
+                     >
+                        {loading ? 'Loading...' : 'Start Quiz'}
+                     </button>
 
-                  <button
-                     className="primary-button"
-                     onClick={startQuiz}
-                     disabled={loading}
-                  >
-                     {loading ? 'Loading...' : 'Start Quiz'}
-                  </button>
-
-                  {error && <p className="feedback">{error}</p>}
-               </div>
-            ) : (
-               <div className="quiz-card">
-                  {finalScore ? (
-                     <div className="welcome">
-                        <h2>Quiz Completed!</h2>
-                        <p>
-                           Your score: {finalScore.score} /{' '}
-                           {finalScore.answered}
-                        </p>
-                        <p>Percentage: {finalScore.percentage}%</p>
-                        <button
-                           className="primary-button"
-                           onClick={startQuiz}
-                           disabled={loading}
-                        >
-                           {loading ? 'Starting...' : 'Play Again'}
-                        </button>
-                        <button
-                           className="primary-button"
-                           onClick={changeCategory}
-                           disabled={loading}
-                        >
-                           {loading ? 'Starting...' : 'Change category'}
-                        </button>
-                     </div>
-                  ) : (
-                     <>
-                        {/* <h2>Quiz started!</h2>
+                     {error && <p className="feedback">{error}</p>}
+                  </div>
+               ) : (
+                  <div className="quiz-card">
+                     {finalScore ? (
+                        <div className="welcome">
+                           <h2>Quiz Completed!</h2>
+                           <p>
+                              Your score: {finalScore.score} /{' '}
+                              {finalScore.answered}
+                           </p>
+                           <p>Percentage: {finalScore.percentage}%</p>
+                           <button
+                              className="primary-button"
+                              onClick={startQuiz}
+                              disabled={loading}
+                           >
+                              {loading ? 'Starting...' : 'Play Again'}
+                           </button>
+                           <button
+                              className="primary-button"
+                              onClick={changeCategory}
+                              disabled={loading}
+                           >
+                              {loading ? 'Starting...' : 'Change category'}
+                           </button>
+                        </div>
+                     ) : (
+                        <>
+                           {/* <h2>Quiz started!</h2>
                         <p>Session ID: {sessionId}</p>
                         <p>Questions loaded: {questions.length}</p> */}
-                        {answerResult && (
-                           <div>
-                              {countdown !== null && (
-                                 <p>
-                                    {currentQuestionIndex < questions.length - 1
-                                       ? `Next question in ${countdown} seconds...`
-                                       : `Results will appear in ${countdown} seconds...`}
-                                 </p>
-                              )}
-                           </div>
-                        )}
-                        {questions.length > 0 && (
-                           <>
-                              <p className="question-category">
-                                 {questions[currentQuestionIndex].category}
-                              </p>
-
-                              <h2 className="question-title">
-                                 {questions[currentQuestionIndex].question}
-                              </h2>
-
-                              <div className="answers">
-                                 {shuffledAnswers.map(
-                                    ({ answer, answerId }) => (
-                                       <button
-                                          className={`answer-option ${
-                                             selectedAnswer === answerId
-                                                ? answerResult?.correct
-                                                   ? 'correct'
-                                                   : answerResult
-                                                     ? 'wrong'
-                                                     : ''
-                                                : ''
-                                          }`}
-                                          key={answerId}
-                                          onClick={() => submitAnswer(answerId)}
-                                          disabled={answerResult !== null}
-                                       >
-                                          {answer}
-                                       </button>
-                                    ),
+                           {answerResult && (
+                              <div>
+                                 {countdown !== null && (
+                                    <p>
+                                       {currentQuestionIndex <
+                                       questions.length - 1
+                                          ? `Next question in ${countdown} seconds...`
+                                          : `Results will appear in ${countdown} seconds...`}
+                                    </p>
                                  )}
                               </div>
-
-                              {answerResult && (
-                                 <p className="feedback">
-                                    {answerResult.message}
-                                    {answerResult.full_answer &&
-                                       ` ${answerResult.full_answer}`}
+                           )}
+                           {questions.length > 0 && (
+                              <>
+                                 <p className="question-category">
+                                    {questions[currentQuestionIndex].category}
                                  </p>
-                              )}
 
-                              {error && <p className="feedback">{error}</p>}
-                           </>
-                        )}
-                     </>
-                  )}
-               </div>
-            )}
-         </section>
+                                 <h2 className="question-title">
+                                    {questions[currentQuestionIndex].question}
+                                 </h2>
+
+                                 <div className="answers">
+                                    {shuffledAnswers.map(
+                                       ({ answer, answerId }) => (
+                                          <button
+                                             className={`answer-option ${
+                                                selectedAnswer === answerId
+                                                   ? answerResult?.correct
+                                                      ? 'correct'
+                                                      : answerResult
+                                                        ? 'wrong'
+                                                        : ''
+                                                   : ''
+                                             }`}
+                                             key={answerId}
+                                             onClick={() =>
+                                                submitAnswer(answerId)
+                                             }
+                                             disabled={answerResult !== null}
+                                          >
+                                             {answer}
+                                          </button>
+                                       ),
+                                    )}
+                                 </div>
+
+                                 {answerResult && (
+                                    <p className="feedback">
+                                       {answerResult.message}
+                                       {answerResult.full_answer &&
+                                          ` ${answerResult.full_answer}`}
+                                    </p>
+                                 )}
+
+                                 {error && <p className="feedback">{error}</p>}
+                              </>
+                           )}
+                        </>
+                     )}
+                  </div>
+               )}
+            </section>
+         )}
       </main>
    );
 }
