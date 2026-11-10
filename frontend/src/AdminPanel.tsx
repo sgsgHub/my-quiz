@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import {
    getAdminQuestions,
-   getCategories,
+   getAdminCategories,
    createAdminQuestion,
    updateAdminQuestion,
    deleteAdminQuestion,
    createAdminCategory,
+   updateAdminCategory,
+   deleteAdminCategory,
+   type AdminCategory,
    type AdminQuestion,
    type AdminQuestionInput,
 } from './api';
@@ -25,7 +28,7 @@ export default function AdminPanel() {
    const [password, setPassword] = useState('');
 
    const [questions, setQuestions] = useState<AdminQuestion[]>([]);
-   const [categories, setCategories] = useState<string[]>([]);
+   const [categories, setCategories] = useState<AdminCategory[]>([]);
 
    const [isAuthenticated, setIsAuthenticated] = useState(false);
    const [loading, setLoading] = useState(false);
@@ -52,7 +55,7 @@ export default function AdminPanel() {
       try {
          const [questionData, categoryData] = await Promise.all([
             getAdminQuestions(username, password),
-            getCategories(),
+            getAdminCategories(username, password),
          ]);
 
          setQuestions(questionData.questions);
@@ -182,7 +185,7 @@ export default function AdminPanel() {
       try {
          await createAdminCategory(username, password, name);
 
-         const data = await getCategories();
+         const data = await getAdminCategories(username, password);
 
          setCategories(data.categories);
          setNewCategory('');
@@ -197,7 +200,93 @@ export default function AdminPanel() {
          setLoading(false);
       }
    }
+   async function handleRenameCategory(category: AdminCategory) {
+      const newName = window.prompt(
+         'Enter the new category name:',
+         category.name,
+      );
 
+      if (newName === null) return;
+
+      const name = newName.trim();
+
+      if (!name) {
+         setError('Category name cannot be empty.');
+         return;
+      }
+
+      if (name === category.name) return;
+
+      setLoading(true);
+      setError('');
+      setSuccess('');
+
+      try {
+         await updateAdminCategory(username, password, category.id, name);
+
+         const [categoryData, questionData] = await Promise.all([
+            getAdminCategories(username, password),
+            getAdminQuestions(username, password),
+         ]);
+
+         setCategories(categoryData.categories);
+         setQuestions(questionData.questions);
+
+         if (formData.category === category.name) {
+            setFormData({
+               ...formData,
+               category: name,
+            });
+         }
+
+         setSuccess('Category renamed successfully.');
+      } catch (error) {
+         setError(
+            error instanceof Error
+               ? error.message
+               : 'Failed to rename category',
+         );
+      } finally {
+         setLoading(false);
+      }
+   }
+
+   async function handleDeleteCategory(category: AdminCategory) {
+      const confirmed = window.confirm(
+         `Delete category "${category.name}"? Categories containing questions or quiz sessions cannot be deleted.`,
+      );
+
+      if (!confirmed) return;
+
+      setLoading(true);
+      setError('');
+      setSuccess('');
+
+      try {
+         await deleteAdminCategory(username, password, category.id);
+
+         const data = await getAdminCategories(username, password);
+
+         setCategories(data.categories);
+
+         if (formData.category === category.name) {
+            setFormData({
+               ...formData,
+               category: '',
+            });
+         }
+
+         setSuccess('Category deleted successfully.');
+      } catch (error) {
+         setError(
+            error instanceof Error
+               ? error.message
+               : 'Failed to delete category',
+         );
+      } finally {
+         setLoading(false);
+      }
+   }
    if (!isAuthenticated) {
       return (
          <section className="admin-panel">
@@ -260,9 +349,28 @@ export default function AdminPanel() {
 
          <h4>Existing categories</h4>
 
-         <ul>
+         <ul className="admin-category-list">
             {categories.map((category) => (
-               <li key={category}>{category}</li>
+               <li key={category.id}>
+                  <span>{category.name}</span>
+                  <div className="admin-actions">
+                     <button
+                        type="button"
+                        onClick={() => handleRenameCategory(category)}
+                        disabled={loading}
+                     >
+                        Rename
+                     </button>
+
+                     <button
+                        type="button"
+                        onClick={() => handleDeleteCategory(category)}
+                        disabled={loading}
+                     >
+                        Delete
+                     </button>
+                  </div>
+               </li>
             ))}
          </ul>
 
@@ -285,8 +393,8 @@ export default function AdminPanel() {
                <option value="">Select category</option>
 
                {categories.map((category) => (
-                  <option key={category} value={category}>
-                     {category}
+                  <option key={category.id} value={category.name}>
+                     {category.name}
                   </option>
                ))}
             </select>

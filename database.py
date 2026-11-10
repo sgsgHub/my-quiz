@@ -10,6 +10,18 @@ class QuestionAlreadyAnsweredError(Exception):
     pass
 
 
+class CategoryNotFoundError(ValueError):
+    pass
+
+
+class CategoryNameAlreadyExistsError(ValueError):
+    pass
+
+
+class CategoryInUseError(ValueError):
+    pass
+
+
 DATABASE_PATH = Path(__file__).parent / "quiz.db"
 
 
@@ -184,6 +196,25 @@ def get_categories_from_db():
         ).fetchall()
 
         return [row["name"] for row in rows]
+
+
+def get_admin_categories_from_db():
+    with database_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, name
+            FROM categories
+            ORDER BY name
+            """
+        ).fetchall()
+
+    return [
+        {
+            "id": row["id"],
+            "name": row["name"],
+        }
+        for row in rows
+    ]
 
 
 def get_questions_from_db(category=None):
@@ -701,3 +732,114 @@ def create_category_in_db(name):
         "id": category["id"],
         "name": category["name"],
     }
+
+
+def update_category_in_db(category_id, name):
+    placeholder_value = placeholder()
+
+    with database_connection() as connection:
+        category = connection.execute(
+            f"""
+            SELECT id
+            FROM categories
+            WHERE id = {placeholder_value}
+            """,
+            (category_id,),
+        ).fetchone()
+
+        if category is None:
+            raise CategoryNotFoundError("Category not found")
+
+        existing = connection.execute(
+            f"""
+            SELECT id
+            FROM categories
+            WHERE name = {placeholder_value}
+              AND id != {placeholder_value}
+            """,
+            (name, category_id),
+        ).fetchone()
+
+        if existing is not None:
+            raise CategoryNameAlreadyExistsError(
+                "A category with this name already exists"
+            )
+
+        connection.execute(
+            f"""
+            UPDATE categories
+            SET name = {placeholder_value}
+            WHERE id = {placeholder_value}
+            """,
+            (name, category_id),
+        )
+
+        updated = connection.execute(
+            f"""
+            SELECT id, name
+            FROM categories
+            WHERE id = {placeholder_value}
+            """,
+            (category_id,),
+        ).fetchone()
+
+    return {
+        "id": updated["id"],
+        "name": updated["name"],
+    }
+
+
+def delete_category_from_db(category_id):
+    placeholder_value = placeholder()
+    with database_connection() as connection:
+        category = connection.execute(
+            f"""
+            SELECT id
+            FROM categories
+            WHERE id = {placeholder_value}
+            """,
+            (category_id,),
+        ).fetchone()
+
+        if category is None:
+            raise CategoryNotFoundError("Category not found")
+
+        questions = connection.execute(
+            f"""
+            SELECT id
+            FROM questions
+            WHERE category_id = {placeholder_value}
+            LIMIT 1
+            """,
+            (category_id,),
+        ).fetchone()
+
+        if questions is not None:
+            raise CategoryInUseError(
+                "Cannot delete this category because it contains questions"
+            )
+
+        sessions = connection.execute(
+            f"""
+            SELECT id
+            FROM quiz_sessions
+            WHERE category_id = {placeholder_value}
+            LIMIT 1
+            """,
+            (category_id,),
+        ).fetchone()
+
+        if sessions is not None:
+            raise CategoryInUseError(
+                "Cannot delete this category because it has quiz sessions"
+            )
+
+        connection.execute(
+            f"""
+            DELETE FROM categories
+            WHERE id = {placeholder_value}
+            """,
+            (category_id,),
+        )
+
+    return category_id

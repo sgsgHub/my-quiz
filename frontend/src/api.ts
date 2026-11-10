@@ -37,6 +37,15 @@ export type CategoriesResponse = {
    categories: string[];
 };
 
+export type AdminCategory = {
+   id: number;
+   name: string;
+};
+
+export type AdminCategoriesResponse = {
+   categories: AdminCategory[];
+};
+
 export type QuestionsResponse = {
    questions: {
       id: number;
@@ -147,7 +156,17 @@ export async function getAdminQuestions(
 
    return handleResponse(response, 'Failed to load admin questions');
 }
+export async function getAdminCategories(
+   username: string,
+   password: string,
+): Promise<AdminCategoriesResponse> {
+   const response = await fetch(`${API_URL}/admin/categories`, {
+      headers: getAdminHeaders(username, password),
+      cache: 'no-store',
+   });
 
+   return handleResponse(response, 'Failed to load admin categories');
+}
 export async function createAdminQuestion(
    username: string,
    password: string,
@@ -211,4 +230,35 @@ export async function createAdminCategory(
    });
 
    return handleResponse(response, 'Failed to create category');
+}
+
+export async function updateAdminCategory(
+   username: string,
+   password: string,
+   categoryId: number,
+   name: string,
+) {
+   const response = await fetch(`${API_URL}/admin/categories/${categoryId}`, {
+      method: 'PUT',
+      headers: {
+         ...getAdminHeaders(username, password),
+         'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name }),
+   });
+
+   return handleResponse(response, 'Failed to update category');
+}
+
+export async function deleteAdminCategory(
+   username: string,
+   password: string,
+   categoryId: number,
+) {
+   const response = await fetch(`${API_URL}/admin/categories/${categoryId}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders(username, password),
+   });
+
+   return handleResponse(response, 'Failed to delete category');
 }

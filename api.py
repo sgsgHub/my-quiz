@@ -8,12 +8,17 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 
 from database import (
+    CategoryInUseError,
+    CategoryNameAlreadyExistsError,
+    CategoryNotFoundError,
     QuestionAlreadyAnsweredError,
     create_category_in_db,
     create_question_in_db,
     create_quiz_session,
     create_tables,
+    delete_category_from_db,
     delete_question_from_db,
+    get_admin_categories_from_db,
     get_categories_from_db,
     get_question_from_db,
     get_questions_from_db,
@@ -21,6 +26,7 @@ from database import (
     is_postgres,
     save_quiz_answer,
     seed_questions,
+    update_category_in_db,
     update_question_in_db,
 )
 
@@ -274,6 +280,72 @@ def admin_create_category(
     return {
         "message": "Category created successfully",
         "category": category,
+    }
+
+
+@app.get("/admin/categories")
+def admin_get_categories(
+    admin: str = Depends(verify_admin),
+):
+    return {
+        "categories": get_admin_categories_from_db(),
+    }
+
+
+@app.put("/admin/categories/{category_id}")
+def admin_update_category(
+    category_id: int,
+    request: AdminCategoryRequest,
+    admin: str = Depends(verify_admin),
+):
+    name = request.name.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=422,
+            detail="Category name cannot be empty",
+        )
+
+    try:
+        category = update_category_in_db(category_id, name)
+    except CategoryNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except CategoryNameAlreadyExistsError as error:
+        raise HTTPException(
+            status_code=409,
+            detail=str(error),
+        ) from error
+
+    return {
+        "message": "Category updated successfully",
+        "category": category,
+    }
+
+
+@app.delete("/admin/categories/{category_id}")
+def admin_delete_category(
+    category_id: int,
+    admin: str = Depends(verify_admin),
+):
+    try:
+        delete_category_from_db(category_id)
+    except CategoryNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except CategoryInUseError as error:
+        raise HTTPException(
+            status_code=409,
+            detail=str(error),
+        ) from error
+
+    return {
+        "message": "Category deleted successfully",
+        "category_id": category_id,
     }
 
 
