@@ -152,7 +152,9 @@
    outline: 3px solid var(--color-primary-light);
    outline-offset: 3px;
 }
-
+.answer-option:focus:not(:focus-visible) {
+   outline: none;
+}
 .answer-letter {
    width: 36px;
    height: 36px;
