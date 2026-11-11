@@ -271,3 +271,11 @@
       transform: translateY(-2px);
    }
 }
+@media (pointer: coarse) {
+   .answer-option:hover,
+   .answer-option:hover:not(:disabled) {
+      border-color: var(--color-border);
+      background: var(--color-white);
+      transform: none;
+   }
+}
