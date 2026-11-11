@@ -264,3 +264,10 @@
       outline: none;
    }
 }
+@media (hover: hover) and (pointer: fine) {
+   .answer-option:hover:not(:disabled) {
+      border-color: var(--color-primary);
+      background: #faf8ff;
+      transform: translateY(-2px);
+   }
+}
