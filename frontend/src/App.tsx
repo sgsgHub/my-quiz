@@ -72,6 +72,14 @@ function App() {
    }, [countdown]);
 
    useEffect(() => {
+      const activeElement = document.activeElement;
+
+      if (activeElement instanceof HTMLElement) {
+         activeElement.blur();
+      }
+   }, [currentQuestionIndex]);
+
+   useEffect(() => {
       async function loadCategories() {
          try {
             const data: CategoriesResponse = await getCategories();
