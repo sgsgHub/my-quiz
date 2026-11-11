@@ -264,7 +264,7 @@ function App() {
                                                         : ''
                                                    : ''
                                              }`}
-                                             key={answerId}
+                                             key={`${currentQuestionIndex}-${answerId}`}
                                              onClick={(event) => {
                                                 submitAnswer(answerId);
 
