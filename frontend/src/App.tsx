@@ -265,9 +265,13 @@ function App() {
                                                    : ''
                                              }`}
                                              key={answerId}
-                                             onClick={() =>
-                                                submitAnswer(answerId)
-                                             }
+                                             onClick={(event) => {
+                                                submitAnswer(answerId);
+
+                                                if (event.detail > 0) {
+                                                   event.currentTarget.blur();
+                                                }
+                                             }}
                                              disabled={answerResult !== null}
                                           >
                                              {answer}
